@@ -43,3 +43,8 @@ Add-ADGroupMember -Identity "Domain Admins" -Members "a-jspringfield"
 invoke-command -ComputerName win19-svr1.lab.lan -UseSSL -Authentication Negotiate -ScriptBlock {
     Add-LocalGroupMember "Administrators" -Member "LAB\jspringfield"
 }
+
+
+invoke-command -ComputerName win10-dsk1.lab.lan -UseSSL -Authentication Negotiate -ScriptBlock {
+    Add-LocalGroupMember "Administrators" -Member "LAB\jspringfield"
+}

@@ -1,5 +1,5 @@
-attack_technique: Chaining 
-display_name: "Chaining Example" 
+attack_technique: Stage1 
+display_name: "Initial Compromise Example" 
 atomic_tests:
 
 # T1053.005, T1119 (Scheduled Task for Escalation Discovery)

