@@ -178,7 +178,7 @@ atomic_tests:
       $Password = '#12345Abc'
       $pass = ConvertTo-SecureString -AsPlainText $Password -Force
       $Cred = New-Object System.Management.Automation.PSCredential -ArgumentList $Username,$pass
-      invoke-command -ComputerName $env:COMPUTERNAME -Credential $Cred -ScriptBlock {
+      invoke-command -ComputerName $env:COMPUTERNAME -Credential $Cred -SessionOption (New-PSSessionOption -SkipRevocationCheck) -ScriptBlock {
           $compress = @{
               Path = "C:\Temp\temp.dmp","C:\temp\*.save"
               CompressionLevel = "Fastest"

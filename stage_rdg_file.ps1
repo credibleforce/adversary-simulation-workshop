@@ -1,4 +1,4 @@
-invoke-command -ComputerName win19-svr1.lab.lan -UseSSL -Authentication Negotiate -ScriptBlock {
+invoke-command -ComputerName win19-svr1.lab.lan -UseSSL -Authentication Negotiate -SessionOption (New-PSSessionOption -SkipRevocationCheck) -ScriptBlock {
     iwr -UseBasicParsing "https://github.com/mobia-security-services/adversarysimulationworkshop/raw/main/RDCMan.zip" -OutFile $env:TEMP\RDCMan.zip
     Expand-Archive -Path $env:TEMP\RDCMan.zip -DestinationPath $env:TEMP -Force
     cd $env:TEMP\RDCMan

@@ -21,7 +21,7 @@ atomic_tests:
               $dc = $matches[1]
           }
       }
-      invoke-command -ComputerName "$dc.lab.lan" -UseSSL -Authentication Negotiate -ErrorAction SilentlyContinue {
+      invoke-command -ComputerName "$dc.lab.lan" -UseSSL -Authentication Negotiate -SessionOption (New-PSSessionOption -SkipRevocationCheck) -ErrorAction SilentlyContinue {
           $ps1 = @'
               $service=(Get-Service -name VSS)
               if($service.Status -ne "Running"){$notrunning=1;$service.Start()}
@@ -58,7 +58,7 @@ atomic_tests:
       $Password = '#12345Abc'
       $pass = ConvertTo-SecureString -AsPlainText $Password -Force
       $Cred = New-Object System.Management.Automation.PSCredential -ArgumentList $Username,$pass
-      invoke-command -ComputerName $env:COMPUTERNAME -Credential $Cred -ScriptBlock {
+      invoke-command -ComputerName $env:COMPUTERNAME -Credential $Cred -SessionOption (New-PSSessionOption -SkipRevocationCheck) -ScriptBlock {
           $compress = @{
               Path = "C:\Temp\ntds.dit","C:\temp\dc*.save"
               CompressionLevel = "Fastest"

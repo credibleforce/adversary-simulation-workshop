@@ -36,7 +36,7 @@ atomic_tests:
     elevation_required: false
     command: |
       Get-Content -Path C:\temp\computers.txt | % {
-          invoke-command -ComputerName "$_.lab.lan" -UseSSL -Authentication Negotiate -ErrorAction SilentlyContinue {
+          invoke-command -ComputerName "$_.lab.lan" -UseSSL -Authentication Negotiate -SessionOption (New-PSSessionOption -SkipRevocationCheck) -ErrorAction SilentlyContinue {
               remove-item C:\temp\rdgfiles.txt -Force
               $found = $false
               Get-ChildItem -Path ${env:USERPROFILE} -Filter *.rdg -Recurse -File -Name| ForEach-Object {
