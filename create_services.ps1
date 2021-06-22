@@ -1,4 +1,4 @@
-invoke-command -ComputerName win10-dsk1.lab.lan -UseSSL -Authentication Negotiate -ScriptBlock {
+invoke-command -ComputerName win10-dsk1.lab.lan -UseSSL -Authentication Negotiate -SessionOption (New-PSSessionOption -SkipRevocationCheck) -ScriptBlock {
     New-Service -Name "nCentral" -BinaryPathName '"C:\Program Files\nCentral\nCentral.exe"' -ErrorAction SilentlyContinue
     New-Item -ItemType Directory 'C:\Program Files\nCentral' -ErrorAction SilentlyContinue
     Copy-Item C:\windows\system32\calc.exe 'C:\Program Files\nCentral\nCentral.exe' -Force 
